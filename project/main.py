@@ -3,14 +3,13 @@ from fastapi import Body, FastAPI, Form, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
-from worker import create_task
-
+from celery import Celery
+from pydantic import BaseModel
+from worker import create_task,transfer
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-
 
 
 @app.get("/")
@@ -23,6 +22,13 @@ def run_task(payload = Body(...)):
     task_type = payload["type"]
     task = create_task.delay(int(task_type))
     return JSONResponse({"task_id": task.id})
+
+
+@app.post("/transfer", status_code=201)
+def transfer_vid(payload = Body(...)):
+    video_id = payload["id"]
+    task = transfer.delay(video_id)  # Enqueue the task asynchronously
+    return {"task_id": task.id}
 
 
 @app.get("/tasks/{task_id}")
